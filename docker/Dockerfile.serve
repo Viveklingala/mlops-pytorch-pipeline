@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1
+#
+# Multi-stage build for the serving image. Keeps the final image slim by
+# installing only inference dependencies (no tensorboard/training extras)
+# and running as a non-root user.
+
+# ---- Stage 1: dependency build ----
+FROM python:3.11-slim AS deps
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements/serve.txt .
+RUN pip install --no-cache-dir --prefix=/install -r serve.txt
+
+# ---- Stage 2: serving runtime ----
+FROM python:3.11-slim AS serving
+
+# curl is needed only for the HEALTHCHECK below.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+
+WORKDIR /app
+
+COPY --from=deps /install /usr/local
+COPY src/ ./src/
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CHECKPOINT_PATH=/app/checkpoints/classifier_v1.pt \
+    PYTHONPATH=/app/src
+
+# Checkpoint directory is mounted read-only from a PVC in Kubernetes
+# (see k8s/serving-deployment.yaml); create it here so local `docker run`
+# without a mount still starts (and correctly reports /health as unhealthy).
+RUN mkdir -p /app/checkpoints && chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+WORKDIR /app/src
+CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "8080"]
