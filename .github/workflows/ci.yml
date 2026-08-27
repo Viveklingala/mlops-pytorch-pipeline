@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install training + test dependencies
+        run: |
+          pip install --no-cache-dir -r requirements/train.txt
+          pip install --no-cache-dir pytest ruff
+
+      - name: Lint (ruff)
+        run: ruff check src tests
+
+      - name: Run unit tests
+        run: pytest tests -v
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build training image
+        run: docker build -f docker/Dockerfile.train -t mlops-train:ci .
+
+      - name: Build serving image
+        run: docker build -f docker/Dockerfile.serve -t mlops-serve:ci .
