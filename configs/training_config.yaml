@@ -1,0 +1,22 @@
+# Training configuration. Mounted into the training container/pod at
+# /app/configs/training_config.yaml (see docker/Dockerfile.train and
+# k8s/training-job.yaml). Values here match k8s/configmap.yaml so local
+# and cluster runs behave the same way.
+model:
+  architecture: resnet18   # one of: simple_cnn, resnet18
+  num_classes: 10
+
+training:
+  epochs: 10
+  batch_size: 64
+  learning_rate: 0.001
+  early_stopping_patience: 3
+  num_workers: 2
+
+data:
+  dataset: cifar10
+  data_dir: /app/data
+
+output:
+  checkpoint_dir: /app/checkpoints
+  model_name: classifier_v1.pt
