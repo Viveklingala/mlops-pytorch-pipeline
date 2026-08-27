@@ -28,7 +28,7 @@ jobs:
       - name: Install training + test dependencies
         run: |
           pip install --no-cache-dir -r requirements/train.txt
-          pip install --no-cache-dir pytest ruff
+          pip install --no-cache-dir pytest ruff==0.15.11
 
       - name: Lint (ruff)
         run: ruff check src tests

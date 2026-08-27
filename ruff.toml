@@ -1,0 +1,16 @@
+line-length = 100
+
+[lint]
+# PLR0402 flags `import torch.nn as nn`, which is the standard, idiomatic
+# PyTorch import style used throughout src/ — not something to "fix" into
+# `from torch import nn`.
+#
+# B008 flags function calls in argument defaults, but FastAPI's dependency
+# injection pattern (`= File(...)`, `= Depends(...)`) relies on exactly
+# that — it's intentional, not an accidental mutable default.
+ignore = ["PLR0402", "B008"]
+
+[lint.flake8-bugbear]
+# Belt-and-suspenders alongside the B008 ignore above: these are the
+# specific FastAPI call sites ruff's own docs recommend allowlisting.
+extend-immutable-calls = ["fastapi.File", "fastapi.Depends", "fastapi.Query"]
