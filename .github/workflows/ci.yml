@@ -17,6 +17,13 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          # setup-python's pip cache needs an explicit path here because our
+          # requirements files live under requirements/ with non-default
+          # names (train.txt / serve.txt), not the repo-root requirements.txt
+          # or pyproject.toml it looks for automatically.
+          cache-dependency-path: |
+            requirements/train.txt
+            requirements/serve.txt
 
       - name: Install training + test dependencies
         run: |
