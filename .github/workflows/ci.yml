@@ -16,12 +16,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
+          # No pip caching here: our install step below uses
+          # `--no-cache-dir` (to keep runner disk usage down for the large
+          # torch wheel), which means pip never creates a cache directory —
+          # combining that with `cache: "pip"` makes the action's post-job
+          # cache-save step fail trying to save a folder that never existed.
 
       - name: Install training + test dependencies
         run: |
           pip install --no-cache-dir -r requirements/train.txt
-          pip install --no-cache-dir pytest ruff
+          pip install --no-cache-dir pytest ruff==0.15.11
 
       - name: Lint (ruff)
         run: ruff check src tests
