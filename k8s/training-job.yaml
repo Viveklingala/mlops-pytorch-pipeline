@@ -52,6 +52,12 @@ spec:
               value: /app/configs/training_config.yaml
             - name: CHECKPOINT_DIR
               value: /app/checkpoints
+            # Local-cluster demo convenience: caps batches/epoch so the Job
+            # finishes in minutes on a CPU-only Minikube node instead of
+            # running full epochs. Remove this env var for a real training
+            # run on a properly resourced (ideally GPU) cluster.
+            - name: MAX_BATCHES
+              value: "5"
           resources:
             # NOTE: the assignment spec calls for CPU:2 / Memory:4Gi. On a
             # resource-constrained local Minikube node (e.g. an 8GB laptop,
