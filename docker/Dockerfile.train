@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+#
+# Multi-stage build for the training image.
+#
+# Stage 1 (deps) installs Python packages into an isolated location so the
+# final stage can copy just the installed packages, not pip's cache or
+# build tooling. Stage 2 (training) is the slim runtime that actually ships.
+
+# ---- Stage 1: dependency build ----
+FROM python:3.11-slim AS deps
+
+WORKDIR /app
+
+# Build tools needed only to compile some wheels; discarded after this stage.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements/train.txt .
+# --prefix lets us copy a self-contained site-packages tree into the next
+# stage without dragging along apt caches or the compiler toolchain.
+RUN pip install --no-cache-dir --prefix=/install -r train.txt
+
+# ---- Stage 2: training runtime ----
+FROM python:3.11-slim AS training
+
+WORKDIR /app
+
+# Copy only the installed Python packages from the deps stage.
+COPY --from=deps /install /usr/local
+
+COPY src/ ./src/
+COPY configs/ ./configs/
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CONFIG_PATH=/app/configs/training_config.yaml
+
+# Volumes for dataset cache and checkpoints; mounted at `docker run` /
+# via PVCs in Kubernetes (see k8s/training-job.yaml).
+VOLUME ["/app/data", "/app/checkpoints"]
+
+WORKDIR /app/src
+ENTRYPOINT ["python", "train.py"]
